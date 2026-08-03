@@ -37,7 +37,7 @@ jobs:
       # Step 5: Run the Ingestion & Data Vault Transformation
       - name: Execute Pipeline Ingestion
         run: |
-          python pipeline.py
+          python pipeline.py --ci
 
       # Step 6: Run Data Quality Tests
       - name: Execute dbt Data Quality Assertions
