@@ -1,0 +1,19 @@
+# Virtual Environment
+venv/
+env/
+
+# Database Files
+*.duckdb
+*.duckdb.tmp
+
+# dbt Artifacts & Logs
+ecommerce_dv/target/
+ecommerce_dv/dbt_packages/
+ecommerce_dv/logs/
+
+# Prefect Cache
+.prefect/
+
+# Python Cache
+__pycache__/
+*.pyc

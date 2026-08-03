@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  # ----------------------------------------------------
+  # 1. Test the Customer Dimension
+  # ----------------------------------------------------
+  - name: dim_customers
+    description: "Consumer dimension table containing active customer profile data."
+    columns:
+      - name: customer_hk
+        description: "Primary hash key for customer entity."
+        tests:
+          - unique
+          - not_null
+
+      - name: email
+        description: "Customer email address."
+        tests:
+          - not_null
+
+  # ----------------------------------------------------
+  # 2. Test the Orders Fact Table
+  # ----------------------------------------------------
+  - name: fct_orders
+    description: "Transaction fact table mapping orders to customers."
+    columns:
+      - name: transaction_hk
+        tests:
+          - unique
+          - not_null
+
+      - name: customer_hk
+        tests:
+          - not_null
+          # Referentially verify that every customer in fct_orders exists in dim_customers
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_hk
+
+      - name: amount
+        tests:
+          - not_null
+
+  # ----------------------------------------------------
+  # 3. Test the Order Hub
+  # ----------------------------------------------------
+  - name: hub_order
+    columns:
+      - name: order_hk
+        tests:
+          - unique
+          - not_null
