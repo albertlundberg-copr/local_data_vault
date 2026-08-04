@@ -32,7 +32,7 @@ jobs:
       - name: Install dbt packages
         run: |
           cd ecommerce_dv
-          dbt deps
+          dbt deps --profiles-dir .
 
       # Step 5: Run the Ingestion & Data Vault Transformation
       - name: Execute Pipeline Ingestion

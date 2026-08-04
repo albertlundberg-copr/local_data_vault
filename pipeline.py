@@ -73,9 +73,9 @@ def run_dbt_pipeline():
     """Uses system shell execution to run the dbt transformation layer."""
     print("Initiating dbt compilation and execution loop...")
     
-    # Execute 'dbt run' in the absolute folder context
+    # Execute 'dbt run' telling dbt to look in PROJECT_DIR for profiles.yml
     result = subprocess.run(
-        ["dbt", "run"], 
+        ["dbt", "run", "--profiles-dir", PROJECT_DIR], 
         cwd=PROJECT_DIR, 
         capture_output=True, 
         text=True
@@ -84,10 +84,10 @@ def run_dbt_pipeline():
     # Print dbt's terminal output back into our orchestrator logs
     print(result.stdout)
     
-    # If dbt fails, raise an exception so Prefect knows the task failed
+    # If dbt fails, print stderr and raise an exception
     if result.returncode != 0:
         print(result.stderr)
-        raise RuntimeError("dbt transformation execution failed!")
+        raise RuntimeError(f"dbt transformation execution failed!\n{result.stderr}")
 
 # ==========================================
 # THE CORE PIPELINE ORCHESTRATOR (THE FLOW)
