@@ -101,10 +101,16 @@ def scheduled_vault_pipeline():
     run_dbt_pipeline()
 
 if __name__ == "__main__":
-    print("Initializing continuous scheduler...")
-    # This keeps the script running in an infinite loop,
-    # automatically triggering the pipeline every 60 seconds!
-    scheduled_vault_pipeline.serve(
-        name="data-vault-continuous-loop",
-        interval=60
-    )
+    import sys
+
+    # If you explicitly pass '--serve' in terminal, run the continuous loop
+    if "--serve" in sys.argv:
+        print("Initializing continuous scheduler...")
+        scheduled_vault_pipeline.serve(
+            name="data-vault-continuous-loop",
+            interval=60
+        )
+    # Default behavior: Run the pipeline ONCE and shut down cleanly
+    else:
+        print("Executing single pipeline run...")
+        scheduled_vault_pipeline()
