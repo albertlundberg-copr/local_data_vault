@@ -43,4 +43,4 @@ jobs:
       - name: Execute dbt Data Quality Assertions
         run: |
           cd ecommerce_dv
-          dbt test
+          dbt test --profiles-dir .

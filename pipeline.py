@@ -73,21 +73,27 @@ def run_dbt_pipeline():
     """Uses system shell execution to run the dbt transformation layer."""
     print("Initiating dbt compilation and execution loop...")
     
-    # Execute 'dbt run' telling dbt to look in PROJECT_DIR for profiles.yml
+    # 1. Run 'dbt seed' to ensure initial seeds (like raw_customers) exist
+    seed_result = subprocess.run(
+        ["dbt", "seed", "--profiles-dir", PROJECT_DIR],
+        cwd=PROJECT_DIR,
+        capture_output=True,
+        text=True
+    )
+    print(seed_result.stdout)
+    
+    # 2. Run 'dbt run' to build all Data Vault and Mart models
     result = subprocess.run(
         ["dbt", "run", "--profiles-dir", PROJECT_DIR], 
         cwd=PROJECT_DIR, 
         capture_output=True, 
         text=True
     )
-    
-    # Print dbt's terminal output back into our orchestrator logs
     print(result.stdout)
     
-    # If dbt fails, print stderr and raise an exception
+    # If dbt fails, raise an exception containing dbt's detailed STDOUT logs
     if result.returncode != 0:
-        print(result.stderr)
-        raise RuntimeError(f"dbt transformation execution failed!\n{result.stderr}")
+        raise RuntimeError(f"dbt transformation execution failed!\n\nDBT LOGS:\n{result.stdout}")
 
 # ==========================================
 # THE CORE PIPELINE ORCHESTRATOR (THE FLOW)
