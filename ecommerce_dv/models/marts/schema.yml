@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: dim_crypto_current
+    description: "Current snapshot of top crypto assets."
+    columns:
+      - name: coin_id
+        description: "Primary asset identifier."
+        tests:
+          - unique
+          - not_null
+      - name: current_price
+        tests:
+          - not_null
+
+  - name: fct_crypto_history
+    description: "Append-only historical price ledger."
+    columns:
+      - name: coin_id
+        tests:
+          - not_null
+      - name: recorded_at
+        tests:
+          - not_null

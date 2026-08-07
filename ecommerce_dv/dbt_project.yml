@@ -31,9 +31,16 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   ecommerce_dv:
-    # Config indicated by + and applies to all files under models/example/
+    staging:
+      +materialized: view
+    raw_vault:
+      +materialized: incremental
+    marts:
+      +materialized: view
+
 dispatch:
-  - macro_namespace: automate_dv
-    search_order: ['ecommerce_dv', 'automate_dv', 'postgres']
+  - macro_namespace: 'automate_dv'
+    search_order: ['ecommerce_dv', 'automate_dv']
+
 on-run-start:
-  - "CREATE OR REPLACE MACRO md5_binary(val) AS md5(val);"
+  - "CREATE OR REPLACE MACRO md5_binary(a) AS md5(a);"

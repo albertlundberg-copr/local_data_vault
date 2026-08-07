@@ -3,4 +3,4 @@ ecommerce_dv:
   outputs:
     dev:
       type: duckdb
-      path: dev.duckdb
+      path: "md:crypto_vault"

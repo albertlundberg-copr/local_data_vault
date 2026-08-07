@@ -1,9 +1,9 @@
 {%- set yaml_metadata -%}
-source_model: 'stg_customers'
-src_pk: 'CUSTOMER_HK'
-src_nk: 'customer_id'
-src_ldts: 'LOAD_DATETIME'
-src_source: 'RECORD_SOURCE'
+src_pk: "CRYPTO_HK"
+src_nk: "coin_id"
+src_ldts: "LOAD_DATE"
+src_source: "RECORD_SOURCE"
+source_model: "v_stg_crypto_markets"
 {%- endset -%}
 
 {% set metadata_dict = fromyaml(yaml_metadata) %}

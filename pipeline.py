@@ -1,122 +1,57 @@
 import os
 import subprocess
-import random
-from datetime import datetime
-import duckdb
-from prefect import task, flow
+import sys
+from prefect import flow, task
+import ingest_crypto
 
-# ==========================================
-# DYNAMIC PATH RESOLUTION (Bulletproof Setup)
-# ==========================================
-# Get the absolute folder where THIS pipeline.py script lives
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Smart check: Are we in the root folder or inside the subfolder?
-if os.path.exists(os.path.join(SCRIPT_DIR, "ecommerce_dv")):
-    # Script is in the root folder (local_data_vault/)
-    DB_PATH = os.path.join(SCRIPT_DIR, "ecommerce_dv", "dev.duckdb")
-    PROJECT_DIR = os.path.join(SCRIPT_DIR, "ecommerce_dv")
-else:
-    # Script is inside the subfolder (ecommerce_dv/)
-    DB_PATH = os.path.join(SCRIPT_DIR, "dev.duckdb")
-    PROJECT_DIR = SCRIPT_DIR
+@task(name="Ingest Live Crypto API Data")
+def task_ingest_crypto():
+    """Fetches CoinGecko API data and loads into raw_crypto_markets."""
+    data = ingest_crypto.fetch_live_crypto_data()
+    ingest_crypto.load_to_landing_zone(data)
 
-print(f"--- PATH CHECK ---")
-print(f"Target Database: {DB_PATH}")
-print(f"Target dbt Project: {PROJECT_DIR}")
-print(f"------------------")
 
-# ==========================================
-# TASK 1: Live Mock Data Ingestion Engine
-# ==========================================
-@task(name="Extract & Load Live Orders")
-def extract_and_load_orders():
-    """Simulates an upstream app inserting new orders into the raw landing zone."""
-    print(f"Connecting to landing database at: {DB_PATH}")
-    
-    conn = duckdb.connect(DB_PATH)
-    
-    # 1. Create the raw target table if it doesn't exist yet
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS raw_orders (
-            order_id INTEGER,
-            customer_id INTEGER,
-            order_date TIMESTAMP,
-            amount DECIMAL(10,2)
-        )
-    """)
-    
-    # 2. Generate a randomized order for our existing customers (1001, 1002, 1003)
-    mock_order_id = random.randint(10000, 99999)
-    mock_customer_id = random.choice([1001, 1002, 1003])
-    mock_amount = round(random.uniform(15.50, 450.00), 2)
-    current_time = datetime.now()
-    
-    # 3. Insert the record into the raw landing table
-    conn.execute("""
-        INSERT INTO raw_orders (order_id, customer_id, order_date, amount) 
-        VALUES (?, ?, ?, ?)
-    """, (mock_order_id, mock_customer_id, current_time, mock_amount))
-    
-    # Quick sanity check print to see the table size grow
-    total_rows = conn.execute("SELECT COUNT(*) FROM raw_orders").fetchone()[0]
-    print(f" Loaded Order #{mock_order_id} for Customer {mock_customer_id} (${mock_amount})")
-    print(f" Total records sitting in raw_orders: {total_rows}")
-    
-    conn.close()
-
-# ==========================================
-# TASK 2: dbt Transformation Trigger
-# ==========================================
-@task(name="Trigger dbt Warehouse Transformation")
-def run_dbt_pipeline():
-    """Uses system shell execution to run the dbt transformation layer."""
-    print("Initiating dbt compilation and execution loop...")
-    
-    # 1. Run 'dbt seed' to ensure initial seeds (like raw_customers) exist
-    seed_result = subprocess.run(
-        ["dbt", "seed", "--profiles-dir", PROJECT_DIR],
-        cwd=PROJECT_DIR,
-        capture_output=True,
-        text=True
+@task(name="Run & Test Data Vault Models")
+def task_run_dbt():
+    """Executes dbt transformations and runs assertions in an isolated process."""
+    runner_code = (
+        "from dbt.cli.main import dbtRunner; "
+        "runner = dbtRunner(); "
+        "res_run = runner.invoke(['run', '--project-dir', 'ecommerce_dv', '--profiles-dir', 'ecommerce_dv']); "
+        "if not res_run.success: exit(1); "
+        "res_test = runner.invoke(['test', '--project-dir', 'ecommerce_dv', '--profiles-dir', 'ecommerce_dv']); "
+        "exit(0 if res_test.success else 1)"
     )
-    print(seed_result.stdout)
-    
-    # 2. Run 'dbt run' to build all Data Vault and Mart models
+
+    env = os.environ.copy()
+    env["PYTHONWARNINGS"] = "ignore"
+
     result = subprocess.run(
-        ["dbt", "run", "--profiles-dir", PROJECT_DIR], 
-        cwd=PROJECT_DIR, 
-        capture_output=True, 
-        text=True
+        [sys.executable, "-c", runner_code],
+        capture_output=True,
+        text=True,
+        env=env,
     )
-    print(result.stdout)
-    
-    # If dbt fails, raise an exception containing dbt's detailed STDOUT logs
-    if result.returncode != 0:
-        raise RuntimeError(f"dbt transformation execution failed!\n\nDBT LOGS:\n{result.stdout}")
 
-# ==========================================
-# THE CORE PIPELINE ORCHESTRATOR (THE FLOW)
-# ==========================================
-@flow(name="E-Commerce Data Vault Platform Pipeline")
-def scheduled_vault_pipeline():
-    # Step 1: Ingest live data into the raw staging area
-    extract_and_load_orders()
-    
-    # Step 2: Trigger dbt to process the Data Vault models
-    run_dbt_pipeline()
+    if result.stdout:
+        print(result.stdout)
+
+    if result.returncode != 0:
+        error_details = result.stdout.strip() or result.stderr.strip() or "Unknown dbt error"
+        raise RuntimeError(f"dbt run/test failed:\n{error_details}")
+
+
+@flow(name="Cloud Crypto Data Vault Orchestrator")
+def crypto_pipeline():
+    task_ingest_crypto()
+    task_run_dbt()
+
 
 if __name__ == "__main__":
-    import sys
-
-    # If you explicitly pass '--serve' in terminal, run the continuous loop
-    if "--serve" in sys.argv:
-        print("Initializing continuous scheduler...")
-        scheduled_vault_pipeline.serve(
-            name="data-vault-continuous-loop",
-            interval=60
-        )
-    # Default behavior: Run the pipeline ONCE and shut down cleanly
-    else:
-        print("Executing single pipeline run...")
-        scheduled_vault_pipeline()
+    # Replaced manual execution with an automated schedule
+    crypto_pipeline.serve(
+        name="crypto-vault-ingestion-deployment",
+        cron="*/15 * * * *",  # Runs every 15 minutes
+        tags=["crypto", "motherduck", "dbt"]
+    )

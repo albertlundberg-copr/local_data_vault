@@ -1,13 +1,16 @@
 {%- set yaml_metadata -%}
-source_model: 'stg_customers'
-src_pk: 'CUSTOMER_HK'
-src_hashdiff: 'CUSTOMER_HASHDIFF'
+src_pk: "CRYPTO_HK"
+src_hashdiff: "HASHDIFF"
 src_payload:
-  - 'first_name'
-  - 'last_name'
-  - 'email'
-src_ldts: 'LOAD_DATETIME'
-src_source: 'RECORD_SOURCE'
+  - "symbol"
+  - "name"
+  - "current_price"
+  - "market_cap"
+  - "total_volume"
+  - "price_change_percentage_24h"
+src_ldts: "LOAD_DATE"
+src_source: "RECORD_SOURCE"
+source_model: "v_stg_crypto_markets"
 {%- endset -%}
 
 {% set metadata_dict = fromyaml(yaml_metadata) %}
